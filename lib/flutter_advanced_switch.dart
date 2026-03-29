@@ -89,7 +89,7 @@ class _AdvancedSwitchState extends State<AdvancedSwitch>
     _animationController = AnimationController(
       vsync: this,
       duration: _duration,
-      value: _controller.value ? 1.0 : 0.0,
+      value: _valueController.value ? 1.0 : 0.0,
     );
 
     _initAnimation();
