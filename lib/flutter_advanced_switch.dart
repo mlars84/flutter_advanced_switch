@@ -10,59 +10,123 @@ class AdvancedSwitch extends StatefulWidget {
     this.inactiveChild,
     this.activeImage,
     this.inactiveImage,
-    this.borderRadius = const BorderRadius.all(const Radius.circular(15)),
+    this.decoration = const BoxDecoration(
+      borderRadius: BorderRadius.all(Radius.circular(15)),
+    ),
     this.width = 50.0,
     this.height = 30.0,
     this.enabled = true,
     this.disabledOpacity = 0.5,
     this.thumb,
+    this.thumbPadding = 1.0,
     this.initialValue = false,
     this.onChanged,
   }) : super(key: key);
 
-  /// Determines if widget is enabled
+  /// Whether the switch is enabled.
+  ///
+  /// If false, the switch will be displayed with reduced opacity and will not
+  /// respond to user interactions.
+  ///
+  /// Defaults to true.
   final bool enabled;
 
-  /// Determines current state.
+  /// Controls the state of the switch.
+  ///
+  /// If provided, the switch will use this controller to manage its state.
+  /// When the controller's value changes, the switch will animate to the new state.
+  ///
+  /// If null, the switch will manage its own internal state using [initialValue].
   final ValueNotifier<bool>? controller;
 
-  /// Determines background color for the active state.
+  /// The background color when the switch is in the active (on) state.
+  ///
+  /// Defaults to green (0xFF4CAF50).
   final Color activeColor;
 
-  /// Determines background color for the inactive state.
+  /// The background color when the switch is in the inactive (off) state.
+  ///
+  /// Defaults to grey (0xFF9E9E9E).
   final Color inactiveColor;
 
-  /// Determines label for the active state.
+  /// A widget to display on the left side when the switch is active.
+  ///
+  /// Typically a Text or Icon widget. This child is visible when the switch
+  /// is in the on state and slides with the thumb.
   final Widget? activeChild;
 
-  /// Determines label for the inactive state.
+  /// A widget to display on the right side when the switch is inactive.
+  ///
+  /// Typically a Text or Icon widget. This child is visible when the switch
+  /// is in the off state and slides with the thumb.
   final Widget? inactiveChild;
 
-  /// Determines background image for the active state.
+  /// An optional background image to display when the switch is active.
+  ///
+  /// If provided, this image will be displayed behind the switch content
+  /// when in the on state.
   final ImageProvider? activeImage;
 
-  /// Determines background image for the inactive state.
+  /// An optional background image to display when the switch is inactive.
+  ///
+  /// If provided, this image will be displayed behind the switch content
+  /// when in the off state.
   final ImageProvider? inactiveImage;
 
-  /// Determines border radius.
-  final BorderRadius borderRadius;
+  /// The decoration to apply to the switch container.
+  ///
+  /// Typically used to set the border radius and shape of the switch.
+  /// The color from this decoration will be overridden by [activeColor]
+  /// and [inactiveColor].
+  ///
+  /// Defaults to a rounded rectangle with 15px radius.
+  final BoxDecoration decoration;
 
-  /// Determines width.
+  /// The width of the switch.
+  ///
+  /// Defaults to 50.0.
   final double width;
 
-  /// Determines height.
+  /// The height of the switch.
+  ///
+  /// The thumb size is automatically calculated based on this value.
+  ///
+  /// Defaults to 30.0.
   final double height;
 
-  /// Determines opacity of disabled control.
+  /// The opacity to apply when the switch is disabled.
+  ///
+  /// Only applied when [enabled] is false.
+  ///
+  /// Defaults to 0.5.
   final double disabledOpacity;
 
-  /// Thumb widget.
+  /// A custom widget to use as the thumb (the sliding part of the switch).
+  ///
+  /// If null, a default white rounded rectangle with a shadow will be used.
   final Widget? thumb;
 
-  /// The initial value.
+  /// The padding around the thumb.
+  ///
+  /// This creates space between the thumb and the switch edges.
+  /// The thumb's border radius is automatically adjusted based on this value.
+  ///
+  /// Defaults to 1.0.
+  final double thumbPadding;
+
+  /// The initial state of the switch when [controller] is not provided.
+  ///
+  /// This value is only used when [controller] is null. If a controller is
+  /// provided, its value will be used instead.
+  ///
+  /// Defaults to false (off state).
   final bool initialValue;
 
-  /// Called when the value of the switch should change.
+  /// Called when the user toggles the switch.
+  ///
+  /// The switch will call this callback with the new value when the user
+  /// taps on it. If null and no [controller] is provided, the switch will
+  /// be disabled.
   final ValueChanged? onChanged;
 
   @override
@@ -83,14 +147,12 @@ class _AdvancedSwitchState extends State<AdvancedSwitch>
     super.initState();
 
     _controller = ValueNotifier<bool>(widget.initialValue);
-
-    _valueController.addListener(_handleControllerValueChanged);
-
     _animationController = AnimationController(
       vsync: this,
       duration: _duration,
       value: _controller.value ? 1.0 : 0.0,
     );
+    _valueController.addListener(_handleControllerValueChanged);
 
     _initAnimation();
   }
@@ -99,25 +161,34 @@ class _AdvancedSwitchState extends State<AdvancedSwitch>
   void didUpdateWidget(covariant AdvancedSwitch oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    oldWidget.controller?.removeListener(_handleControllerValueChanged);
-    _valueController
-      ..removeListener(_handleControllerValueChanged)
-      ..addListener(_handleControllerValueChanged);
-
-    if (oldWidget.initialValue != widget.initialValue) {
-      _valueController.value = widget.initialValue;
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller?.removeListener(_handleControllerValueChanged);
+      widget.controller?.addListener(_handleControllerValueChanged);
     }
 
     _initAnimation();
   }
 
   @override
+  void dispose() {
+    _valueController.removeListener(_handleControllerValueChanged);
+    if (widget.controller == null) {
+      _controller.dispose();
+    }
+    _animationController.dispose();
+
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final labelSize = widget.width - _thumbSize;
-    final containerSize = labelSize * 2 + _thumbSize;
+    final containerSize = (labelSize * 2) + _thumbSize;
+    final effectiveThumbPadding = EdgeInsets.all(widget.thumbPadding);
 
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
+      cursor:
+          _isEnabled ? SystemMouseCursors.click : SystemMouseCursors.forbidden,
       child: GestureDetector(
         onTap: _handlePressed,
         child: Opacity(
@@ -125,15 +196,14 @@ class _AdvancedSwitchState extends State<AdvancedSwitch>
           child: AnimatedBuilder(
             animation: _animationController,
             builder: (_, child) {
-              return ClipRRect(
-                borderRadius: widget.borderRadius,
+              return Container(
                 clipBehavior: Clip.antiAlias,
-                child: Container(
-                  width: widget.width,
-                  height: widget.height,
+                decoration: widget.decoration.copyWith(
                   color: _colorAnimation.value,
-                  child: child,
                 ),
+                width: widget.width,
+                height: widget.height,
+                child: child,
               );
             },
             child: Stack(
@@ -142,8 +212,6 @@ class _AdvancedSwitchState extends State<AdvancedSwitch>
                   ValueListenableBuilder<bool>(
                     valueListenable: _valueController,
                     builder: (_, value, ___) {
-                      print('value: $value');
-
                       return AnimatedCrossFade(
                         crossFadeState: value
                             ? CrossFadeState.showSecond
@@ -200,15 +268,17 @@ class _AdvancedSwitchState extends State<AdvancedSwitch>
                           ),
                         ),
                         Container(
-                          margin: const EdgeInsets.all(2),
-                          width: _thumbSize - 4,
-                          height: _thumbSize - 4,
+                          margin: effectiveThumbPadding,
+                          width: _thumbSize - effectiveThumbPadding.horizontal,
+                          height: _thumbSize - effectiveThumbPadding.vertical,
                           child: widget.thumb ??
                               Container(
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFFFFFFF),
-                                  borderRadius: widget.borderRadius
-                                      .subtract(BorderRadius.circular(1)),
+                                  borderRadius: widget.decoration.borderRadius
+                                      ?.subtract(BorderRadius.all(
+                                    Radius.circular(widget.thumbPadding),
+                                  )),
                                   boxShadow: const [
                                     BoxShadow(
                                       color: Color(0x42000000),
@@ -291,16 +361,5 @@ class _AdvancedSwitchState extends State<AdvancedSwitch>
     }
 
     _valueController.value = !_valueController.value;
-  }
-
-  @override
-  void dispose() {
-    _valueController.removeListener(_handleControllerValueChanged);
-
-    _controller..dispose();
-
-    _animationController.dispose();
-
-    super.dispose();
   }
 }
