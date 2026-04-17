@@ -1,3 +1,14 @@
+## 3.2.0
+
+* `decoration` property added to replace deprecated `borderRadius`.
+* `thumbPadding` property added for customizable thumb spacing.
+* Improved controller lifecycle management.
+* Fixed overflow issues with thumb padding.
+* Enhanced documentation for all public properties.
+* Modernized example app with better UI/UX.
+* Added support for custom thumb border radius based on padding.
+* Cursor now shows forbidden state when switch is disabled.
+
 ## 3.1.1
 
 * Documentation updated.
